@@ -27,3 +27,15 @@ test('prioritizes chosen date and neighbors before remaining dates',()=>{
  assert.equal(new Set(ordered).size,45);
  assert.equal(ordered.length,45);
 });
+
+test("multi-city negative results remain partial until every destination has evidence",()=>{
+  const partial=parseAwardEvidence({records:[{...base,mark:"NOT_MARKED"}]}).records;
+  assert.equal(getDayEvidence(partial,"2027-04-01","ICN",["JFK","LAX"],"SKYPASS","BUSINESS").status,"PARTIAL");
+  const full=parseAwardEvidence({records:[{...base,mark:"NOT_MARKED"},{...base,mark:"NOT_MARKED",destination:"LAX"}]}).records;
+  assert.equal(getDayEvidence(full,"2027-04-01","ICN",["JFK","LAX"],"SKYPASS","BUSINESS").status,"NOT_MARKED");
+});
+test("unsupported Asiana first class never gets labeled sold out",()=>{
+  assert.equal(getDayEvidence([],"2027-04-01","ICN",["JFK"],"ASIANA_CLUB","FIRST").status,"UNSUPPORTED");
+  assert.equal(getDayEvidence([],"2027-04-01","ICN",["JFK"],"LEGACY_ASIANA","FIRST").status,"UNSUPPORTED");
+  assert.equal(parseAwardEvidence({records:[{...base,program:"ASIANA_CLUB",cabin:"FIRST"}]}).rejected,1);
+});
