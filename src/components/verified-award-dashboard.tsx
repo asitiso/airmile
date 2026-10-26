@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { AirportField } from "@/components/airport-field";
+import { SearchPlanPanel } from "@/components/search-plan-panel";
 import { AIRPORT } from "@/data/airports";
 import { addDays, addMonths, monthGrid, monthKey, monthLabel, seoulToday } from "@/lib/dates";
 import {
@@ -148,12 +149,13 @@ export function VerifiedAwardDashboard() {
       </section>
       <section className="mt-4 rounded-xl border border-line bg-surface p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="font-semibold">검색 데이터 가져오기</h2><p className="mt-1 text-xs text-muted">검증 가능한 출처·조회 시각이 포함된 JSON만 반입 · 브라우저에 저장</p></div>
+          <div><h2 className="font-semibold">검색 데이터 가져오기</h2><p className="mt-1 text-xs text-muted">출처 URL·조회 시각 형식이 포함된 JSON만 반입 · 진위 미인증 · 브라우저에 저장</p></div>
           <div className="flex flex-wrap items-center gap-2"><label className="flex cursor-pointer items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white"><FileJson2 className="size-4"/>JSON 가져오기<input type="file" accept=".json,application/json" className="sr-only" onChange={onImport}/></label><button type="button" className="flex items-center gap-1 rounded-lg border border-line px-3 py-2 text-sm" onClick={clearData}><Trash2 className="size-4"/>자료 삭제</button></div>
         </div>
         <p className="mt-2 text-xs text-muted" role="status">{message}</p>
         <div className="mt-3 flex flex-wrap gap-2">{officialLinks.map(link=><a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-2 text-sm hover:bg-bg">{link.name}<ExternalLink className="size-3"/></a>)}</div>
       </section>
+      <SearchPlanPanel today={today} anchor={anchor} origin={from} destinations={eligibleDestinations} programs={(filterProgram==="all" ? ["SKYPASS","ASIANA_CLUB"] : [filterProgram]) as AwardProgram[]} />
       <section className="mt-4 rounded-xl border border-line bg-surface p-3 sm:p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 text-lg font-semibold"><CalendarDays className="size-5"/>보너스 좌석 달력</h2><p className="text-xs text-muted">표시 기간은 12개월 · 모든 항공사 좌석은 출처별 확인 필요</p></div><div className="flex gap-2"><button type="button" onClick={()=>setView("year")} className={`rounded-lg px-3 py-2 text-sm ${view==="year"?"bg-accent text-white":"border border-line"}`}>12개월</button><button type="button" onClick={()=>setView("month")} className={`rounded-lg px-3 py-2 text-sm ${view==="month"?"bg-accent text-white":"border border-line"}`}>상세 달력</button></div></div>
         <div className="mb-3 flex flex-wrap items-end gap-2"><label className="text-xs text-muted">마일리지 프로그램<select value={filterProgram} onChange={e=>setFilterProgram(e.target.value as typeof filterProgram)} className="mt-1 block rounded-lg border border-line bg-bg p-2 text-sm"><option value="all">전체</option>{PROGRAMS.map(p=><option key={p.code} value={p.code}>{p.label}</option>)}</select></label><label className="text-xs text-muted">좌석 등급<select value={filterCabin} onChange={e=>setFilterCabin(e.target.value as typeof filterCabin)} className="mt-1 block rounded-lg border border-line bg-bg p-2 text-sm"><option value="all">전체</option><option value="ECONOMY">이코노미</option><option value="BUSINESS">비즈니스</option><option value="FIRST">일등석</option></select></label></div>
