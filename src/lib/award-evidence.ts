@@ -62,6 +62,7 @@ export function parseAwardEvidence(payload: unknown): ImportResult {
       typeof r.origin !== "string" || !codeRe.test(r.origin) ||
       typeof r.destination !== "string" || !codeRe.test(r.destination) || !validDate(r.departureDate) ||
       !programs.has(r.program as string) || !cabins.has(r.cabin as string) ||
+      (r.cabin === "FIRST" && r.program !== "SKYPASS") ||
       !marks.has(r.mark as string) || !origins.has(r.evidenceOrigin as string) ||
       !optionalNumber(r.milesPerPassenger) || !optionalNumber(r.taxAmount) ||
       (r.taxAmount !== undefined && (typeof r.taxCurrency !== "string" || !/^[A-Z]{3}$/.test(r.taxCurrency))) ||
@@ -99,12 +100,15 @@ export function dedupeEvidence(input: AwardEvidence[]): AwardEvidence[] {
 }
 
 export function getDayEvidence(input: AwardEvidence[], date: string, from: string, destinations: string[], program: AwardProgram, cabin: AwardCabin) {
+  if (cabin === "FIRST" && program !== "SKYPASS") return { status:"UNSUPPORTED" as const, flightCount:null, minMiles:null, evidenceCount:0 };
   const rows = input.filter(x => x.departureDate === date && x.origin === from && destinations.includes(x.destination) && x.program === program && x.cabin === cabin);
+  const checkedDestinations = new Set(rows.map(x=>x.destination));
+  const partial = destinations.some(d=>!checkedDestinations.has(d));
   const positive = rows.filter(x => x.mark === "MARKED");
   const flightIds = new Set(positive.map(x => x.flightNumber).filter(Boolean));
   const miles = positive.map(x => x.milesPerPassenger).filter((x): x is number => typeof x === "number");
   return {
-    status: positive.length ? "MARKED" as const : rows.some(x=>x.mark==="WAITLIST") ? "WAITLIST" as const : rows.length ? "NOT_MARKED" as const : "NOT_CHECKED" as const,
+    status: positive.length ? "MARKED" as const : rows.some(x=>x.mark==="WAITLIST") ? "WAITLIST" as const : rows.length && partial ? "PARTIAL" as const : rows.length ? "NOT_MARKED" as const : "NOT_CHECKED" as const,
     flightCount: flightIds.size ? flightIds.size : null,
     minMiles: miles.length ? Math.min(...miles) : null,
     evidenceCount: rows.length,
