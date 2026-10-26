@@ -35,6 +35,8 @@ function subtractDates(a: string, b: string) {
 }
 function labelOf(status: ReturnType<typeof getDayEvidence>) {
   if (status.status === "NOT_CHECKED") return "미조회";
+  if (status.status === "UNSUPPORTED") return "미운영";
+  if (status.status === "PARTIAL") return "일부 목적지 미조회";
   if (status.status === "WAITLIST") return "대기 표시";
   if (status.status === "NOT_MARKED") return "표시 없음";
   const count = status.flightCount !== null ? `${status.flightCount}편` : "좌석 표시";
