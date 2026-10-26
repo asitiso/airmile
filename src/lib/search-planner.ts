@@ -43,7 +43,8 @@ export function buildMonthlySearchPlan(p:SearchPlanInput):MonthlyJob[]{
   if(programs.some(x=>!["SKYPASS","ASIANA_CLUB","LEGACY_ASIANA"].includes(x)))throw Error("프로그램 오류");
   const destinations=[...new Set(p.destinations.filter(x=>x!==p.origin))];
   const end=addDay(p.today,days-1),months=listMonths(p.today,end);
-  const tiers=new Map<string,JobTier>(months.map(m=>[m,"background"]));
+  const tiers=new Map<string,JobTier>();
+  for(const month of months)tiers.set(month,"background");
   for(let i=0;i<p.requestedMonths;i++){const m=addMonth(p.anchor.slice(0,7),i);if(tiers.has(m))tiers.set(m,"requested");}
   for(const m of listMonths(p.anchor,addDay(p.anchor,29)))if(tiers.has(m))tiers.set(m,"first_month");
   for(let d=-3;d<=3;d++){
