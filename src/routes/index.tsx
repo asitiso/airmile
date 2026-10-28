@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Finder } from "@/components/finder";
+import { VerifiedAwardDashboard } from "@/components/verified-award-dashboard";
 
-export const Route = createFileRoute("/")({ component: Home });
-
-function Home() {
-  return <Finder />;
-}
+export const Route = createFileRoute("/")({
+  component: VerifiedAwardDashboard,
+});

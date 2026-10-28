@@ -1,0 +1,44 @@
+name: AirMile Korean Air single-month probe
+
+# The 2026-10-28 probe encountered a first-party HTTP 403.
+# No push trigger, schedule or automatic retry. Further use requires an explicit
+# operator decision after access conditions have been reviewed.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-calendar-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Check Chrome runtime
+        run: |
+          google-chrome --version
+          command -v xvfb-run
+      - name: One anonymous UI lookup - ICN to JFK April 2027
+        run: |
+          mkdir -p probe-results
+          set +e
+          xvfb-run -a npm run collect:ke -- ICN JFK 2027-04 --refresh 2>&1 | tee probe-results/collector.log
+          result=${PIPESTATUS[0]}
+          printf 'exit_code=%s\n' "$result" > probe-results/result.txt
+          printf '## Korean Air public-calendar probe\n\n- Route: ICN-JFK\n- Month: 2027-04\n- Exit code: %s\n- Anonymous UI only; no credentials or private API calls.\n- Failure is not sold-out inventory.\n' "$result" >> "$GITHUB_STEP_SUMMARY"
+          exit "$result"
+      - name: Save diagnostic output and any successfully collected public indicators
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ke-public-calendar-probe
+          path: |
+            probe-results/
+            data/official-calendar/ke-ICN-JFK-2027-04.json
+          if-no-files-found: warn
+          retention-days: 7

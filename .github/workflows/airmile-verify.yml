@@ -1,0 +1,27 @@
+name: AirMile verified-award checks
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feature/verified-award-data-gate-20261026]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Clean install
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Logic tests
+        run: npm test
+      - name: Build without production migrations
+        run: npm run build:dev

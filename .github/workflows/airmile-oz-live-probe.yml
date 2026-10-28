@@ -1,0 +1,37 @@
+name: AirMile Asiana single-month observation
+
+# 2026-10-28: the hosted observation encountered HTTP 403. No push trigger,
+# schedule, protocol fallback or automatic retry. Review access before reuse.
+on:
+  workflow_dispatch:
+    inputs:
+      access_reviewed:
+        description: 'Confirm this environment and the public lookup have been reviewed for permitted access'
+        type: boolean
+        required: true
+        default: false
+permissions:
+  contents: read
+jobs:
+  observe:
+    if: inputs.access_reviewed == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: One explicitly reviewed public UI observation
+        run: xvfb-run -a node scripts/probes/asiana-observation.mjs
+      - name: Retain anonymous public observation or failure report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oz-single-month-observation
+          path: probe-results/
+          retention-days: 1
+          if-no-files-found: warn
