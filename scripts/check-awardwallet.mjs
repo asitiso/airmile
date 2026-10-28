@@ -81,8 +81,8 @@ async function readMetadata(response) {
 export async function checkAwardWallet({ live = false, approved = false, username, password,
   fetchImpl = globalThis.fetch, timeoutMs = 10000 } = {}) {
   const result = (status, extra = {}) => ({ status, inventoryVerified: false, searchExecuted: false, ...extra });
-  if (!live) return result('NOT_REQUESTED');
-  if (!approved) return result('ACCESS_APPROVAL_REQUIRED');
+  if (live !== true) return result('NOT_REQUESTED');
+  if (approved !== true) return result('ACCESS_APPROVAL_REQUIRED');
   if (typeof username !== 'string' || !username || typeof password !== 'string' || !password) return result('API_CREDENTIALS_REQUIRED');
   if (/[:\r\n]/.test(username) || /[\r\n]/.test(password) || username.length + password.length > 4096) return result('INVALID_CREDENTIALS');
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000) return result('INVALID_CONFIGURATION');

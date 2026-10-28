@@ -89,3 +89,8 @@ test('a stalled request is bounded and cancelled, with no retry',async()=>{
   const result=await checkAwardWallet({...approved,timeoutMs:10,fetchImpl:(_url,init)=>{calls++;signal=init.signal;return new Promise(()=>{});}});
   assert.equal(result.status,'TIMEOUT');assert.equal(signal.aborted,true);assert.equal(calls,1);
 });
+
+test('string values cannot accidentally enable live access or approval',async()=>{
+  assert.equal((await checkAwardWallet({...approved,live:'false',fetchImpl:offline})).status,'NOT_REQUESTED');
+  assert.equal((await checkAwardWallet({...approved,approved:'false',fetchImpl:offline})).status,'ACCESS_APPROVAL_REQUIRED');
+});
