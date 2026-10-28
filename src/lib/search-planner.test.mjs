@@ -1,3 +1,4 @@
+// @ts-nocheck -- JavaScript runtime tests; TypeScript module contracts are checked separately.
 import assert from "node:assert/strict";
 import test from "node:test";
 import {buildMonthlySearchPlan,chooseNextMonthlyJobs,summarizeSearchPlan} from "./search-planner.ts";
