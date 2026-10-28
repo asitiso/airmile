@@ -16,9 +16,10 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/preview-path-prefix.test.ts src/lib/award-evidence.test.mjs && node --experimental-strip-types --test src/lib/search-planner.test.mjs && node --experimental-strip-types --test src/lib/award-source-gate.test.mjs && node --experimental-strip-types --test src/lib/dates.test.mjs",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/preview-path-prefix.test.ts src/lib/award-evidence.test.mjs && node --experimental-strip-types --test src/lib/search-planner.test.mjs && node --experimental-strip-types --test src/lib/award-source-gate.test.mjs && node --experimental-strip-types --test src/lib/dates.test.mjs && node --experimental-strip-types --test src/lib/ke-public-evidence.test.mjs",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "collect:ke": "node --experimental-strip-types scripts/collect-ke-public.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",
