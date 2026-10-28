@@ -8,6 +8,7 @@
 import {chromium} from "playwright";
 import {mkdir,writeFile,readFile,stat} from "node:fs/promises";
 import {resolve} from "node:path";
+import {selectAirport} from "./ke-airport-ui.mjs";
 import {convertKoreanAirPublicCalendar,FILTER_NAMES,PUBLIC_KE_URL} from "../src/lib/ke-public-evidence.ts";
 
 function config(args){
@@ -33,16 +34,6 @@ async function checkAccess(page,blocked){
  if(/access denied|접근이 차단|접속이 차단|보안 문자|자동입력 방지|로봇이 아님|verify you are human|captcha/i.test(text))
   throw Error("보안 확인 또는 접근 제한을 감지하여 조회를 중단했습니다.");
  return text;
-}
-async function selectAirport(page,code,from){
- const label=from?"출발지 검색":"도착지 검색";
- await page.getByRole("button",{name:from?"From 출발지":"To 도착지",exact:true}).click();
- const input=page.getByRole("combobox",{name:label});
- await input.fill("");
- await input.pressSequentially(code,{delay:70});
- const option=page.getByRole("option").filter({hasText:new RegExp("\\b"+code+"\\b")}).first();
- await option.waitFor({state:"visible",timeout:10000});
- await option.click();
 }
 async function captureOneMonth(){
  const {origin,destination,month,refresh}=config(process.argv.slice(2));

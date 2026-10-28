@@ -1,5 +1,6 @@
 name: AirMile Korean Air single-month probe
 
+# Probe revision 2: retest the accessible-name airport selector; no recurring jobs.
 # No schedule and no pull_request trigger. A push only runs a live check when
 # this workflow file changes AND its commit explicitly contains [probe:ke].
 on:
