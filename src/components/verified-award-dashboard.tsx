@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { AirportField } from "@/components/airport-field";
 import { SearchPlanPanel } from "@/components/search-plan-panel";
 import { AIRPORT } from "@/data/airports";
-import { addDays, addMonths, monthGrid, monthKey, monthLabel, seoulToday } from "@/lib/dates";
+import { addDays, addMonths, monthGrid, monthKey, monthLabel, seoulToday, visibleYearMonths } from "@/lib/dates";
 import {
   buildEvidenceIndex, dedupeEvidence, getDayEvidence, parseAwardEvidence,
   type AwardCabin, type AwardEvidence, type AwardProgram, type EvidenceIndex,
@@ -68,7 +68,7 @@ export function VerifiedAwardDashboard() {
   const [filterProgram, setFilterProgram] = useState<"all" | AwardProgram>("all");
   const [filterCabin, setFilterCabin] = useState<"all" | AwardCabin>("all");
   const horizon = addDays(today, 359);
-  const months = useMemo(() => Array.from({length:12}, (_, i) => addMonths(monthKey(anchor), i)), [anchor]);
+  const months = useMemo(() => visibleYearMonths(anchor, today, horizon), [anchor, today, horizon]);
   const eligibleDestinations = useMemo(() => destinations.filter(x => x !== from), [destinations, from]);
   const returnDestination = from;
 
