@@ -99,19 +99,77 @@ export function dedupeEvidence(input: AwardEvidence[]): AwardEvidence[] {
   return Array.from(byKey.values());
 }
 
-export function getDayEvidence(input: AwardEvidence[], date: string, from: string, destinations: string[], program: AwardProgram, cabin: AwardCabin) {
-  if (cabin === "FIRST" && program !== "SKYPASS") return { status:"UNSUPPORTED" as const, flightCount:null, minMiles:null, evidenceCount:0 };
-  const rows = input.filter(x => x.departureDate === date && x.origin === from && destinations.includes(x.destination) && x.program === program && x.cabin === cabin);
-  const checkedDestinations = new Set(rows.map(x=>x.destination));
-  const partial = destinations.some(d=>!checkedDestinations.has(d));
+/**
+ * One-time index for fast daily calendar lookups.
+ * A missing key means UNQUERIED, never sold out.
+ */
+export type EvidenceIndex = {
+  readonly kind: "evidence-index";
+  readonly byKey: ReadonlyMap<string, readonly AwardEvidence[]>;
+};
+function evidenceKey(origin: string, destination: string, date: string, program: AwardProgram, cabin: AwardCabin): string {
+  return [origin, destination, date, program, cabin].join("|");
+}
+export function buildEvidenceIndex(input: readonly AwardEvidence[]): EvidenceIndex {
+  const byKey = new Map<string, AwardEvidence[]>();
+  // Data imported from multiple files may contain newer revisions of the same option.
+  for (const row of dedupeEvidence([...input])) {
+    const key = evidenceKey(row.origin, row.destination, row.departureDate, row.program, row.cabin);
+    const bucket = byKey.get(key);
+    if (bucket) bucket.push(row);
+    else byKey.set(key, [row]);
+  }
+  return {kind:"evidence-index", byKey};
+}
+
+export function getDayEvidence(
+  input: readonly AwardEvidence[] | EvidenceIndex,
+  date: string,
+  from: string,
+  destinations: string[],
+  program: AwardProgram,
+  cabin: AwardCabin,
+) {
+  const requested = [...new Set(destinations)];
+  const empty = {
+    flightCount: null as number | null,
+    minMiles: null as number | null,
+    evidenceCount: 0,
+    checkedDestinations: 0,
+    requestedDestinations: requested.length,
+    partial: requested.length > 0,
+  };
+  if (cabin === "FIRST" && program !== "SKYPASS")
+    return { ...empty, status: "UNSUPPORTED" as const, partial: false };
+  const rows: AwardEvidence[] = [];
+  let checked = 0;
+  const index = Array.isArray(input) ? null : input as EvidenceIndex;
+  for (const destination of requested) {
+    const matches = index
+      ? (index.byKey.get(evidenceKey(from, destination, date, program, cabin)) ?? [])
+      : (input as readonly AwardEvidence[]).filter(x =>
+          x.departureDate === date && x.origin === from && x.destination === destination &&
+          x.program === program && x.cabin === cabin);
+    if (matches.length) checked++;
+    rows.push(...matches);
+  }
+  const partial = checked < requested.length;
   const positive = rows.filter(x => x.mark === "MARKED");
-  const flightIds = new Set(positive.map(x => x.flightNumber).filter(Boolean));
+  const flightIds = new Set(positive.filter(x => x.flightNumber).map(x =>
+    x.destination + "|" + x.flightNumber));
   const miles = positive.map(x => x.milesPerPassenger).filter((x): x is number => typeof x === "number");
   return {
-    status: positive.length ? "MARKED" as const : rows.some(x=>x.mark==="WAITLIST") ? "WAITLIST" as const : rows.length && partial ? "PARTIAL" as const : rows.length ? "NOT_MARKED" as const : "NOT_CHECKED" as const,
+    status: positive.length ? "MARKED" as const
+      : rows.some(x=>x.mark==="WAITLIST") ? "WAITLIST" as const
+      : rows.length && partial ? "PARTIAL" as const
+      : rows.length ? "NOT_MARKED" as const
+      : "NOT_CHECKED" as const,
     flightCount: flightIds.size ? flightIds.size : null,
     minMiles: miles.length ? Math.min(...miles) : null,
     evidenceCount: rows.length,
+    checkedDestinations: checked,
+    requestedDestinations: requested.length,
+    partial,
   };
 }
 
