@@ -6,12 +6,12 @@
  * npm run collect:ke -- ICN JFK 2027-04
  */
 import {chromium} from "playwright";
-import {mkdir,writeFile} from "node:fs/promises";
+import {mkdir,writeFile,readFile,stat} from "node:fs/promises";
 import {resolve} from "node:path";
 import {convertKoreanAirPublicCalendar,FILTER_NAMES,PUBLIC_KE_URL} from "../src/lib/ke-public-evidence.ts";
 
 function config(args){
- if(args.length!==3)throw Error("사용법: npm run collect:ke -- ICN JFK 2027-04");
+ if(args.length!==3 && (args.length!==4 || args[3]!=="--refresh"))throw Error("사용법: npm run collect:ke -- ICN JFK 2027-04 [--refresh]");
  const [origin,destination,month]=[args[0].toUpperCase(),args[1].toUpperCase(),args[2]];
  if(!/^[A-Z]{3}$/.test(origin)||!/^[A-Z]{3}$/.test(destination)||origin===destination)
   throw Error("서로 다른 IATA 공항 코드가 필요합니다.");
@@ -19,7 +19,7 @@ function config(args){
  const now=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
  const max=new Date(Date.parse(now+"T00:00:00Z")+359*86400000).toISOString().slice(0,10);
  if(month<now.slice(0,7)||month>max.slice(0,7))throw Error("현재 공개 달력의 360일 범위를 벗어난 월입니다.");
- return {origin,destination,month};
+ return {origin,destination,month,refresh:args[3]==="--refresh"};
 }
 function sourceTimestamp(text){
  const m=text.match(/좌석 상황은 대한민국 시간\s*\(\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*(\d{1,2}):(\d{2})\s*\)\s*기준/u);
@@ -45,7 +45,25 @@ async function selectAirport(page,code,from){
  await option.click();
 }
 async function captureOneMonth(){
- const {origin,destination,month}=config(process.argv.slice(2));
+ const {origin,destination,month,refresh}=config(process.argv.slice(2));
+ const dir=resolve(process.cwd(),"data","official-calendar");
+ const filename="ke-"+origin+"-"+destination+"-"+month+".json";
+ const filepath=resolve(dir,filename);
+ if(!refresh){
+  try{
+   const file=await stat(filepath);
+   if(Date.now()-file.mtimeMs<12*3600*1000){
+    const previous=JSON.parse(await readFile(filepath,"utf8"));
+    if(Array.isArray(previous.records)&&previous.records.length>0&&previous.records.every(r=>
+      r.origin===origin&&r.destination===destination&&r.program==="SKYPASS"&&
+      typeof r.departureDate==="string"&&r.departureDate.startsWith(month+"-"))){
+     console.log("최근 12시간 이내 저장된 공개 달력 자료 재사용: data/official-calendar/"+filename);
+     console.log("새 조회가 필요하면 명령 끝에 --refresh를 추가하세요.");
+     return;
+    }
+   }
+  }catch{/* missing or corrupt cache: perform one explicit live lookup */}
+ }
  console.log("대한항공 공개 달력 조회: "+origin+" → "+destination+" / "+month);
  console.log("실시간 예약 가능 좌석 수가 아닌 공개 달력 표식만 수집합니다.");
  const browser=await chromium.launch({channel:"chrome",headless:false});
@@ -112,10 +130,8 @@ async function captureOneMonth(){
   });
   const output=convertKoreanAirPublicCalendar({...raw,filters,origin,destination,month,
    checkedAt:new Date().toISOString(),sourceAsOf:sourceTimestamp(body)});
-  const dir=resolve(process.cwd(),"data","official-calendar");
   await mkdir(dir,{recursive:true});
-  const filename="ke-"+origin+"-"+destination+"-"+month+".json";
-  await writeFile(resolve(dir,filename),JSON.stringify({records:output.records},null,2),"utf8");
+  await writeFile(filepath,JSON.stringify({records:output.records},null,2),"utf8");
   console.log("저장: data/official-calendar/"+filename);
   console.log("수집한 날짜 "+output.metadata.coveredDates.length+"일; 일등석 혼합 표시 "+output.metadata.ambiguousFirstClassDates.length+"일.");
   console.log("웹앱의 'JSON 가져오기' 버튼에서 파일을 선택하세요. 발권 전 공식 예약 확인 필수.");
