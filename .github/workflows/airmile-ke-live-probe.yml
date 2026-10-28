@@ -1,16 +1,14 @@
 name: AirMile Korean Air single-month probe
 
-# Diagnostic experiment only: one explicit month, no schedule or automatic retry.
+# The 2026-10-28 probe encountered a first-party HTTP 403.
+# No push trigger, schedule or automatic retry. Further use requires an explicit
+# operator decision after access conditions have been reviewed.
 on:
-  push:
-    branches: [feature/verified-award-data-gate-20261026]
-    paths: [.github/workflows/airmile-ke-live-probe.yml]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   public-calendar-probe:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[probe:ke]')
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
@@ -25,33 +23,6 @@ jobs:
         run: |
           google-chrome --version
           command -v xvfb-run
-      - name: Add ephemeral failure diagnostics to the anonymous public page
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('scripts/collect-ke-public.mjs')
-          text = p.read_text()
-          old = ' } finally {await browser.close();}'
-          assert text.count(old) == 1
-          new = ''' } catch (error) {
-            await checkAccess(page,blocked);
-            const url=new URL(page.url());
-            if(url.origin===new URL(PUBLIC_KE_URL).origin && url.pathname===new URL(PUBLIC_KE_URL).pathname){
-              const snapshot=await page.evaluate(()=>({
-                dialogs:[...document.querySelectorAll('[role="dialog"]')].map(el=>({
-                  labelledBy:el.getAttribute('aria-labelledby'),
-                  visible:Boolean(el.getClientRects().length),
-                  text:(el.innerText||'').slice(0,2500)
-                })),
-                dateCells:document.querySelectorAll('td[id^="day_"]').length,
-                publicText:(document.body.innerText||'').slice(-9000)
-              }));
-              console.error('PUBLIC_UI_DIAGNOSTIC',JSON.stringify(snapshot));
-            }
-            throw error;
-          } finally {await browser.close();}'''
-          p.write_text(text.replace(old,new))
-          PY
       - name: One anonymous UI lookup - ICN to JFK April 2027
         run: |
           mkdir -p probe-results
@@ -59,7 +30,7 @@ jobs:
           xvfb-run -a npm run collect:ke -- ICN JFK 2027-04 --refresh 2>&1 | tee probe-results/collector.log
           result=${PIPESTATUS[0]}
           printf 'exit_code=%s\n' "$result" > probe-results/result.txt
-          printf '## Korean Air public-calendar probe\n\n- Route: ICN-JFK\n- Month: 2027-04\n- Exit code: %s\n- Anonymous ordinary browser UI; no private API calls or credentials.\n- A failed lookup is not evidence of sold-out flights.\n' "$result" >> "$GITHUB_STEP_SUMMARY"
+          printf '## Korean Air public-calendar probe\n\n- Route: ICN-JFK\n- Month: 2027-04\n- Exit code: %s\n- Anonymous UI only; no credentials or private API calls.\n- Failure is not sold-out inventory.\n' "$result" >> "$GITHUB_STEP_SUMMARY"
           exit "$result"
       - name: Save diagnostic output and any successfully collected public indicators
         if: always()
