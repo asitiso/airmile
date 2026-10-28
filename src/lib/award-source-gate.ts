@@ -12,9 +12,11 @@ export type ProviderErrorCode =
   | "CANCELLED" | "INVALID_RESPONSE" | "UNSUPPORTED_PROGRAM";
 
 export class AwardProviderError extends Error {
-  constructor(public readonly code: ProviderErrorCode, message: string) {
+  readonly code: ProviderErrorCode;
+  constructor(code: ProviderErrorCode, message: string) {
     super(message);
     this.name = "AwardProviderError";
+    this.code = code;
   }
 }
 
