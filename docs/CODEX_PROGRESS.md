@@ -63,3 +63,18 @@
 - 공식 데이터 연결: **여전히 미구현/미검증**. 자료가 없는 날짜에는 가상 좌석 수를 표시하지 않음.
 - 다음 단계: Codex 환경에서 `npm ci`, `npm run typecheck`, `npm test`, `npm run build`, Chrome/모바일 달력 회귀 QA. 이후 공식 데이터 제공 경로의 허용 범위와 조회 속도를 실측하고 어댑터 연결.
 - 기존 main 및 배포 서비스는 변경하지 않음.
+
+
+## 2026-10-28 — 데이터 공급자 검증 경계 + CI 실검증
+
+- 소스: `src/lib/award-source-gate.ts` 신규. 공식/허용된 월별 조회 데이터 공급자와 UI 사이에 엄격한 계약을 마련. 이 모듈 자체는 외부 항공사 서버를 호출하지 않음.
+- 공급자가 없는 작업은 `NOT_CONFIGURED`로 처리하며 빈 좌석/매진으로 취급하지 않음.
+- 데이터가 수집되어도 요청 출발지·목적지·마일리지 프로그램·월·명시적 확인 날짜에 맞지 않으면 월 응답 전체를 거부. 출처 확인 시각과 형식도 검사.
+- 월별 조회 응답은 `coveredDates`를 명시해야 하고, 자료가 없는 날짜를 자동으로 조회 완료라고 처리하지 않음. 실패·취소·요청 제한은 독립 상태로 반환.
+- 테스트: `src/lib/award-source-gate.test.mjs`에 미연결/부분 조회/전체 월/잘못된 데이터/제한/취소 등 10종 추가.
+- UI: `visibleYearMonths()`로 12개월 보기의 월 경계 문제 해결. 현재 예약 가능 기간을 초과한 달을 빈 달력으로 표시하지 않음. `src/lib/dates.test.mjs` 3종 추가.
+- CI: `.github/workflows/airmile-verify.yml` 추가. 과거 `package-lock.json`의 npm ci 불일치(ajv 의존성) 문제를 개발 브랜치에서 재생성한 잠금 파일로 해결한 뒤, 읽기 전용 권한으로 안전하게 검증.
+- GitHub Actions 실행 `40616216155`: **npm ci 성공, npm run typecheck 성공, npm test 성공, npm run build:dev 성공**.
+  https://github.com/asitiso/airmile/actions/runs/40616216155
+- 컴파일과 단위 테스트가 통과했더라도 실제 대한항공/아시아나 **라이브 조회는 아직 미연결**. 공급자가 없으면 달력은 `미조회` 유지. 공식 화면 상호작용을 통한 실제 월별 수집은 추가 검증해야 함.
+- 기타 미진행: Google OAuth 로그인, 영속 데이터베이스, 백그라운드 실시간 갱신, 알림, 모바일 브라우저 E2E, 실제 운영 배포. 기존 `main` 불변.
