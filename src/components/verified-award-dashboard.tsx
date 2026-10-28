@@ -217,11 +217,11 @@ function YearMini({
     <div className="grid grid-cols-7 gap-1">
       {WEEK.map(x=><span className="text-center text-[10px] text-muted" key={x}>{x}</span>)}
       {overview.map((day,i)=>day?<button type="button" key={day.date} disabled={day.date<today||day.date>horizon}
-        aria-label={`${day.date}: ${day.hasMarked?"좌석 표시":day.hasWaitlist?"대기 표시":day.hasChecked?"자료에 좌석 표시 없음":"미조회"}${day.incomplete?", 일부 목적지 미조회":""}`}
-        className={`aspect-square rounded-sm text-[10px] disabled:opacity-25 ${day.hasMarked?"bg-emerald-200 text-emerald-950":day.hasWaitlist?"bg-amber-100 text-amber-900":day.hasChecked?"bg-slate-200 text-slate-700":"bg-surface text-muted"}`}
+        aria-label={`${day.date}: ${day.hasMarked?"좌석 표시":day.hasWaitlist?"대기 표시":day.hasChecked&&day.incomplete?"일부 자료 미조회":day.hasChecked?"자료에 좌석 표시 없음":"미조회"}${day.incomplete?", 일부 목적지 미조회":""}`}
+        className={`aspect-square rounded-sm text-[10px] disabled:opacity-25 ${day.hasMarked?"bg-emerald-200 text-emerald-950":day.hasWaitlist?"bg-amber-100 text-amber-900":day.hasChecked&&day.incomplete?"bg-sky-100 text-sky-900":day.hasChecked?"bg-slate-200 text-slate-700":"bg-surface text-muted"}`}
         onClick={()=>{onSelect(day.date);onMonth();}}>{Number(day.date.slice(8))}</button>:<span key={i}/>)}
     </div>
-    <p className="mt-2 text-[10px] text-muted">초록: 좌석 표시 · 노랑: 대기 표시 · 회색: 자료에 표시 없음 · 흰색: 미조회. 현재 선택한 프로그램·등급 필터 적용.</p>
+    <p className="mt-2 text-[10px] text-muted">초록: 좌석 표시 · 노랑: 대기 표시 · 파랑: 일부 미조회 · 회색: 확인 자료에 표시 없음 · 흰색: 미조회. 현재 선택한 프로그램·등급 필터 적용.</p>
   </div>;
 }
 function EvidenceList({title,rows}:{title:string;rows:AwardEvidence[]}) {
