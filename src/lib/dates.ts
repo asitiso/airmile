@@ -66,6 +66,20 @@ export function addMonths(key: string, delta: number): string {
   return `${dt.getUTCFullYear()}-${mm}`;
 }
 
+/**
+ * Show a rolling 12-calendar-month panel containing the requested anchor,
+ * without displaying months entirely beyond the bookable horizon.
+ * The horizon may overlap 13 named calendar months when today is mid-month.
+ */
+export function visibleYearMonths(anchor: string, today: string, horizon: string): string[] {
+  const first = monthKey(today);
+  const last = monthKey(horizon);
+  const maxFirst = addMonths(last, -11);
+  const preferred = monthKey(anchor);
+  const start = preferred < first ? first : preferred > maxFirst ? maxFirst : preferred;
+  return Array.from({ length: 12 }, (_, i) => addMonths(start, i));
+}
+
 export function monthLabel(key: string): string {
   const [y, m] = key.split("-");
   return `${y}년 ${Number(m)}월`;
