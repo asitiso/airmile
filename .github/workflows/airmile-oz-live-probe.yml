@@ -1,16 +1,20 @@
 name: AirMile Asiana single-month observation
 
-# Explicit diagnostic experiments only. No schedule or ordinary source-change trigger.
+# 2026-10-28: the hosted observation encountered HTTP 403. No push trigger,
+# schedule, protocol fallback or automatic retry. Review access before reuse.
 on:
-  push:
-    branches: [feature/verified-award-data-gate-20261026]
-    paths: [.github/workflows/airmile-oz-live-probe.yml]
   workflow_dispatch:
+    inputs:
+      access_reviewed:
+        description: 'Confirm this environment and the public lookup have been reviewed for permitted access'
+        type: boolean
+        required: true
+        default: false
 permissions:
   contents: read
 jobs:
   observe:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[probe:oz]')
+    if: inputs.access_reviewed == true
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -21,17 +25,7 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-      - name: Isolate HTTP2 protocol failure - no proxy or authentication changes
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('scripts/probes/asiana-observation.mjs')
-          s = p.read_text()
-          old = "{ channel: 'chrome', headless: false }"
-          assert s.count(old) == 1
-          p.write_text(s.replace(old, "{ channel: 'chrome', headless: false, args: ['--disable-http2'] }"))
-          PY
-      - name: One public UI lookup - same route and month via HTTP1
+      - name: One explicitly reviewed public UI observation
         run: xvfb-run -a node scripts/probes/asiana-observation.mjs
       - name: Retain anonymous public observation or failure report
         if: always()
