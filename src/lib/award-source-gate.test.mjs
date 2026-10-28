@@ -1,3 +1,4 @@
+// @ts-nocheck -- standalone Node runtime contract tests, not TypeScript source.
 import assert from "node:assert/strict";
 import test from "node:test";
 import {runMonthlyEvidenceJob,AwardProviderError} from "./award-source-gate.ts";
