@@ -21,7 +21,17 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-      - name: One public UI lookup - diagnose public airport form
+      - name: Isolate HTTP2 protocol failure - no proxy or authentication changes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/probes/asiana-observation.mjs')
+          s = p.read_text()
+          old = "{ channel: 'chrome', headless: false }"
+          assert s.count(old) == 1
+          p.write_text(s.replace(old, "{ channel: 'chrome', headless: false, args: ['--disable-http2'] }"))
+          PY
+      - name: One public UI lookup - same route and month via HTTP1
         run: xvfb-run -a node scripts/probes/asiana-observation.mjs
       - name: Retain anonymous public observation or failure report
         if: always()
