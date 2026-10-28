@@ -4,8 +4,8 @@ import { SearchPlanPanel } from "@/components/search-plan-panel";
 import { AIRPORT } from "@/data/airports";
 import { addDays, addMonths, monthGrid, monthKey, monthLabel, seoulToday } from "@/lib/dates";
 import {
-  dedupeEvidence, getDayEvidence, parseAwardEvidence,
-  type AwardCabin, type AwardEvidence, type AwardProgram,
+  buildEvidenceIndex, dedupeEvidence, getDayEvidence, parseAwardEvidence,
+  type AwardCabin, type AwardEvidence, type AwardProgram, type EvidenceIndex,
 } from "@/lib/award-evidence";
 import { CalendarDays, ChevronLeft, ChevronRight, CloudOff, ExternalLink, FileJson2, Info, Plus, Trash2 } from "lucide-react";
 
@@ -34,13 +34,14 @@ function subtractDates(a: string, b: string) {
   return Math.round((Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86400000);
 }
 function labelOf(status: ReturnType<typeof getDayEvidence>) {
-  if (status.status === "NOT_CHECKED") return "미조회";
   if (status.status === "UNSUPPORTED") return "미운영";
+  if (status.status === "NOT_CHECKED") return "미조회";
+  const incomplete = status.partial ? " · 일부 목적지 미조회" : "";
+  if (status.status === "WAITLIST") return "대기 표시" + incomplete;
   if (status.status === "PARTIAL") return "일부 목적지 미조회";
-  if (status.status === "WAITLIST") return "대기 표시";
   if (status.status === "NOT_MARKED") return "표시 없음";
   const count = status.flightCount !== null ? `${status.flightCount}편` : "좌석 표시";
-  return status.minMiles !== null ? `${count} · ${fmtMiles(status.minMiles)}` : count;
+  return (status.minMiles !== null ? `${count} · ${fmtMiles(status.minMiles)}` : count) + incomplete;
 }
 
 export function VerifiedAwardDashboard() {
@@ -61,6 +62,7 @@ export function VerifiedAwardDashboard() {
   const [minNights, setMinNights] = useState(7);
   const [maxNights, setMaxNights] = useState(10);
   const [records, setRecords] = useState<AwardEvidence[]>([]);
+  const evidenceIndex = useMemo(() => buildEvidenceIndex(records), [records]);
   const [pairLimit, setPairLimit] = useState(100);
   const [message, setMessage] = useState("공식 좌석 데이터 제공자가 아직 연결되지 않았습니다.");
   const [filterProgram, setFilterProgram] = useState<"all" | AwardProgram>("all");
@@ -161,11 +163,11 @@ export function VerifiedAwardDashboard() {
       <section className="mt-4 rounded-xl border border-line bg-surface p-3 sm:p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 text-lg font-semibold"><CalendarDays className="size-5"/>보너스 좌석 달력</h2><p className="text-xs text-muted">표시 기간은 12개월 · 모든 항공사 좌석은 출처별 확인 필요</p></div><div className="flex gap-2"><button type="button" onClick={()=>setView("year")} className={`rounded-lg px-3 py-2 text-sm ${view==="year"?"bg-accent text-white":"border border-line"}`}>12개월</button><button type="button" onClick={()=>setView("month")} className={`rounded-lg px-3 py-2 text-sm ${view==="month"?"bg-accent text-white":"border border-line"}`}>상세 달력</button></div></div>
         <div className="mb-3 flex flex-wrap items-end gap-2"><label className="text-xs text-muted">마일리지 프로그램<select value={filterProgram} onChange={e=>setFilterProgram(e.target.value as typeof filterProgram)} className="mt-1 block rounded-lg border border-line bg-bg p-2 text-sm"><option value="all">전체</option>{PROGRAMS.map(p=><option key={p.code} value={p.code}>{p.label}</option>)}</select></label><label className="text-xs text-muted">좌석 등급<select value={filterCabin} onChange={e=>setFilterCabin(e.target.value as typeof filterCabin)} className="mt-1 block rounded-lg border border-line bg-bg p-2 text-sm"><option value="all">전체</option><option value="ECONOMY">이코노미</option><option value="BUSINESS">비즈니스</option><option value="FIRST">일등석</option></select></label></div>
-        {view==="year" ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{months.map(key=><YearMini key={key} month={key} today={today} horizon={horizon} records={records} from={from} destinations={eligibleDestinations} onMonth={()=>{setView("month");setOutMonth(key);}} onSelect={setOutDate}/>)}</div> : <>
+        {view==="year" ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{months.map(key=><YearMini key={key} month={key} today={today} horizon={horizon} records={evidenceIndex} from={from} destinations={eligibleDestinations} programFilter={filterProgram} cabinFilter={filterCabin} onMonth={()=>{setView("month");setOutMonth(key);}} onSelect={setOutDate}/>)}</div> : <>
           {mode!=="ow"&&<div className="mb-3 flex gap-2 lg:hidden"><button className={`rounded-lg px-3 py-2 text-sm ${mobileLeg==="out"?"bg-accent text-white":"border border-line"}`} onClick={()=>setMobileLeg("out")}>가는 편</button><button className={`rounded-lg px-3 py-2 text-sm ${mobileLeg==="back"?"bg-accent text-white":"border border-line"}`} onClick={()=>setMobileLeg("back")}>오는 편</button></div>}
           <div className={`grid gap-3 ${mode==="ow"?"":"lg:grid-cols-2"}`}>
-            <div className={mode!=="ow"&&mobileLeg==="back"?"hidden lg:block":""}><MonthPane title="가는 편" month={outMonth} onMonth={setOutMonth} onSelect={setOutDate} selected={outDate} today={today} horizon={horizon} records={records} from={from} destinations={eligibleDestinations} programFilter={filterProgram} cabinFilter={filterCabin}/></div>
-            {mode!=="ow"&&<div className={mobileLeg==="out"?"hidden lg:block":""}><MonthPane title="오는 편" month={retMonth} onMonth={setRetMonth} onSelect={setRetDate} selected={retDate} today={today} horizon={horizon} records={records} from={returnFrom} destinations={[returnDestination]} programFilter={filterProgram} cabinFilter={filterCabin}/></div>}
+            <div className={mode!=="ow"&&mobileLeg==="back"?"hidden lg:block":""}><MonthPane title="가는 편" month={outMonth} onMonth={setOutMonth} onSelect={setOutDate} selected={outDate} today={today} horizon={horizon} records={evidenceIndex} from={from} destinations={eligibleDestinations} programFilter={filterProgram} cabinFilter={filterCabin}/></div>
+            {mode!=="ow"&&<div className={mobileLeg==="out"?"hidden lg:block":""}><MonthPane title="오는 편" month={retMonth} onMonth={setRetMonth} onSelect={setRetDate} selected={retDate} today={today} horizon={horizon} records={evidenceIndex} from={returnFrom} destinations={[returnDestination]} programFilter={filterProgram} cabinFilter={filterCabin}/></div>}
           </div>
         </>}
       </section>
@@ -178,7 +180,7 @@ export function VerifiedAwardDashboard() {
 
 type PaneProps = {
   title: string; month: string; onMonth:(key:string)=>void; selected:string; onSelect:(date:string)=>void;
-  today:string; horizon:string; records:AwardEvidence[]; from:string;destinations:string[];
+  today:string; horizon:string; records:EvidenceIndex; from:string;destinations:string[];
   programFilter:"all"|AwardProgram;cabinFilter:"all"|AwardCabin;
 };
 function MonthPane({title,month,onMonth,selected,onSelect,today,horizon,records,from,destinations,programFilter,cabinFilter}:PaneProps){
@@ -189,9 +191,38 @@ function MonthPane({title,month,onMonth,selected,onSelect,today,horizon,records,
     <p className="mt-1 text-xs text-muted">모바일에서는 가로로 움직여 요일별 상세 정보를 확인합니다.</p>
   </div>;
 }
-function YearMini({month,today,horizon,records,from,destinations,onMonth,onSelect}: {month:string;today:string;horizon:string;records:AwardEvidence[];from:string;destinations:string[];onMonth:()=>void;onSelect:(d:string)=>void}) {
-  const cells=monthGrid(month);const active=new Set(records.filter(r=>r.origin===from&&destinations.includes(r.destination)&&r.mark==="MARKED").map(r=>r.departureDate));
-  return <div className="rounded-lg border border-line bg-bg p-3"><button type="button" className="mb-2 w-full text-left text-sm font-semibold hover:underline" onClick={onMonth}>{monthLabel(month)} · 자세히 보기</button><div className="grid grid-cols-7 gap-1">{WEEK.map(x=><span className="text-center text-[10px] text-muted" key={x}>{x}</span>)}{cells.map((date,i)=>date?<button type="button" key={date} disabled={date<today||date>horizon} className={`aspect-square rounded-sm text-[10px] disabled:opacity-25 ${active.has(date)?"bg-emerald-200 text-emerald-950":"bg-surface text-muted"}`} onClick={()=>{onSelect(date);onMonth();}}>{Number(date.slice(8))}</button>:<span key={i}/>)}</div><p className="mt-2 text-[10px] text-muted">초록: 반입 자료에 좌석 표시 있음 · 나머지: 미조회/표시 없음 구별은 상세에서</p></div>;
+function YearMini({
+  month, today, horizon, records, from, destinations, programFilter, cabinFilter, onMonth, onSelect,
+}: {
+  month:string; today:string; horizon:string; records:EvidenceIndex; from:string; destinations:string[];
+  programFilter:"all"|AwardProgram; cabinFilter:"all"|AwardCabin;
+  onMonth:()=>void; onSelect:(d:string)=>void;
+}) {
+  const cells=monthGrid(month);
+  const programs=PROGRAMS.filter(x=>programFilter==="all"||programFilter===x.code);
+  const cabins=CABINS.filter(x=>cabinFilter==="all"||cabinFilter===x.code);
+  const overview=cells.map(date=>{
+    if(!date) return null;
+    const statuses=programs.flatMap(p=>cabins.map(c=>getDayEvidence(records,date,from,destinations,p.code,c.code)));
+    return {
+      date,
+      hasMarked:statuses.some(x=>x.status==="MARKED"),
+      hasWaitlist:statuses.some(x=>x.status==="WAITLIST"),
+      hasChecked:statuses.some(x=>x.evidenceCount>0),
+      incomplete:statuses.some(x=>x.partial),
+    };
+  });
+  return <div className="rounded-lg border border-line bg-bg p-3">
+    <button type="button" className="mb-2 w-full text-left text-sm font-semibold hover:underline" onClick={onMonth}>{monthLabel(month)} · 자세히 보기</button>
+    <div className="grid grid-cols-7 gap-1">
+      {WEEK.map(x=><span className="text-center text-[10px] text-muted" key={x}>{x}</span>)}
+      {overview.map((day,i)=>day?<button type="button" key={day.date} disabled={day.date<today||day.date>horizon}
+        aria-label={`${day.date}: ${day.hasMarked?"좌석 표시":day.hasWaitlist?"대기 표시":day.hasChecked?"자료에 좌석 표시 없음":"미조회"}${day.incomplete?", 일부 목적지 미조회":""}`}
+        className={`aspect-square rounded-sm text-[10px] disabled:opacity-25 ${day.hasMarked?"bg-emerald-200 text-emerald-950":day.hasWaitlist?"bg-amber-100 text-amber-900":day.hasChecked?"bg-slate-200 text-slate-700":"bg-surface text-muted"}`}
+        onClick={()=>{onSelect(day.date);onMonth();}}>{Number(day.date.slice(8))}</button>:<span key={i}/>)}
+    </div>
+    <p className="mt-2 text-[10px] text-muted">초록: 좌석 표시 · 노랑: 대기 표시 · 회색: 자료에 표시 없음 · 흰색: 미조회. 현재 선택한 프로그램·등급 필터 적용.</p>
+  </div>;
 }
 function EvidenceList({title,rows}:{title:string;rows:AwardEvidence[]}) {
   const ordered=[...rows].sort((a,b)=>(a.program+a.cabin+(a.flightNumber||"")).localeCompare(b.program+b.cabin+(b.flightNumber||"")));
