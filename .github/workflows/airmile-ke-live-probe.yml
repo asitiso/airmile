@@ -1,8 +1,6 @@
 name: AirMile Korean Air single-month probe
 
-# Probe revision 2: retest the accessible-name airport selector; no recurring jobs.
-# No schedule and no pull_request trigger. A push only runs a live check when
-# this workflow file changes AND its commit explicitly contains [probe:ke].
+# Diagnostic experiment only: one explicit month, no schedule or automatic retry.
 on:
   push:
     branches: [feature/verified-award-data-gate-20261026]
@@ -27,6 +25,33 @@ jobs:
         run: |
           google-chrome --version
           command -v xvfb-run
+      - name: Add ephemeral failure diagnostics to the anonymous public page
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/collect-ke-public.mjs')
+          text = p.read_text()
+          old = ' } finally {await browser.close();}'
+          assert text.count(old) == 1
+          new = ''' } catch (error) {
+            await checkAccess(page,blocked);
+            const url=new URL(page.url());
+            if(url.origin===new URL(PUBLIC_KE_URL).origin && url.pathname===new URL(PUBLIC_KE_URL).pathname){
+              const snapshot=await page.evaluate(()=>({
+                dialogs:[...document.querySelectorAll('[role="dialog"]')].map(el=>({
+                  labelledBy:el.getAttribute('aria-labelledby'),
+                  visible:Boolean(el.getClientRects().length),
+                  text:(el.innerText||'').slice(0,2500)
+                })),
+                dateCells:document.querySelectorAll('td[id^="day_"]').length,
+                publicText:(document.body.innerText||'').slice(-9000)
+              }));
+              console.error('PUBLIC_UI_DIAGNOSTIC',JSON.stringify(snapshot));
+            }
+            throw error;
+          } finally {await browser.close();}'''
+          p.write_text(text.replace(old,new))
+          PY
       - name: One anonymous UI lookup - ICN to JFK April 2027
         run: |
           mkdir -p probe-results
